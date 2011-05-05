@@ -2,6 +2,7 @@
 #define _TEST_APP
 
 #include "ofMain.h"
+#include "ofxNetwork.h"
 #include "ofxAssimpModelLoader.h"
 #include "ofVboMesh.h"
 #include "ofx3DModelLoader.h"
@@ -10,6 +11,9 @@
 #define TAB_DENSITY 240
 #define TAB_XDPI 168
 #define TAB_YDPI 168
+
+//IP of Mac
+#define HOST_IP "172.26.13.29"
 
 class testApp : public ofBaseApp{
 
@@ -29,11 +33,13 @@ class testApp : public ofBaseApp{
 		void gotMessage(ofMessage msg);		
     
 		bool bAnimate;
-		bool bAnimateMouse;
 		float animationTime;
         ofxAssimpModelLoader model;
 
         ofVideoGrabber grabber;
+
+        int zoom, zoomTarget;
+        float zoomSpeed;
 
         ofVboMesh mesh;
         ofPoint position;
@@ -43,6 +49,9 @@ class testApp : public ofBaseApp{
         ofMaterial material;
         ofTexture tex;
         ofLight	light;
+
+        //networking stuff
+        ofxTCPClient tcp;
 };
 
 #endif

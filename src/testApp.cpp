@@ -3,7 +3,12 @@
 
 //--------------------------------------------------------------
 void testApp::setup(){
-    ofSetLogLevel(OF_LOG_VERBOSE);    
+    ofSetLogLevel(OF_LOG_VERBOSE);
+
+    //zoom in effect
+    zoom       = -500;
+    zoomTarget = 350;
+    zoomSpeed = 0.4;
 
     grabber.initGrabber(800, 600);
 	
@@ -36,14 +41,18 @@ void testApp::setup(){
     ofEnableSeparateSpecularLight();
 
 	
-	bAnimate		= false;
-	bAnimateMouse 	= false;
+	bAnimate		= true;
 	animationTime	= 0.0;
+
+	tcp.setup(HOST_IP, 11999);
 }
 
 //--------------------------------------------------------------
 void testApp::update(){
 	grabber.update();
+
+    //sweet - this is how you zoom in
+    zoom += (zoomTarget-zoom) * zoomSpeed;
 
 	//this is for animation if the model has it. 
 	if( bAnimate ){
@@ -55,13 +64,7 @@ void testApp::update(){
 		mesh = model.getCurrentAnimatedMesh(0);
 	}
 
-
-	if( bAnimateMouse ){
-	    model.setNormalizedTime(animationTime);
-		mesh = model.getCurrentAnimatedMesh(0);
-	}
-
-
+	//zzz
 }
 
 //--------------------------------------------------------------
@@ -73,6 +76,11 @@ void testApp::draw(){
     grabber.draw((1024-800)/2, 0);
 
     ofPushMatrix();
+    //position camera
+
+    //reduce opacity
+    ofSetColor(255, 255, 255, 100);
+    ofPushMatrix();
 		ofTranslate(model.getPosition().x+100, model.getPosition().y, 0);
 		ofRotate(-mouseX, 0, 1, 0);
 		ofTranslate(-model.getPosition().x, -model.getPosition().y, 0);
@@ -80,12 +88,13 @@ void testApp::draw(){
 		model.drawFaces();
             
     ofPopMatrix();
+    ofPopMatrix();
 
-
-    ofDrawBitmapString("fps: "+ofToString(ofGetFrameRate(), 2), 10, 15);
-    ofDrawBitmapString("keys 1-5 load models, spacebar to trigger animation", 10, 30);
-    ofDrawBitmapString("drag to control animation with mouseY", 10, 45);
-    ofDrawBitmapString("num animations for this model: " + ofToString(model.getAnimationCount()), 10, 60);
+    int ypos = 15;
+    ofDrawBitmapString("fps: "+ofToString(ofGetFrameRate(), 2), 10, ypos); ypos +=15;
+    //ofDrawBitmapString("keys 1-5 load models, spacebar to trigger animation", 10, ypos); ypos +=15;
+    //ofDrawBitmapString("drag to control animation with mouseY", 10, ypos); ypos +=15;
+    ofDrawBitmapString("num animations for this model: " + ofToString(model.getAnimationCount()), 10, ypos); ypos +=15;
 }
 
 //--------------------------------------------------------------
@@ -148,8 +157,6 @@ void testApp::mouseMoved(int x, int y ){
 
 //--------------------------------------------------------------
 void testApp::mouseDragged(int x, int y, int button){
-	bAnimateMouse = true;
-	animationTime = float(y)/float(ofGetWidth());
 }
 
 //--------------------------------------------------------------
@@ -159,8 +166,6 @@ void testApp::mousePressed(int x, int y, int button){
 
 //--------------------------------------------------------------
 void testApp::mouseReleased(int x, int y, int button){
-	bAnimateMouse = false;
-
 }
 
 //--------------------------------------------------------------
