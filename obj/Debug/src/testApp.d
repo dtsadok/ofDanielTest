@@ -109,6 +109,11 @@ obj/Debug/src/testApp.d obj/Debug/src/testApp.o: src/testApp.cpp \
  ../../../libs/openFrameworks//3d/ofCamera.h \
  ../../../libs/openFrameworks//3d/ofEasyCam.h \
  ../../../libs/openFrameworks//gl/ofLight.h \
+ ../../../addons/ofxNetwork/src/ofxNetwork.h \
+ ../../../addons/ofxNetwork/src/ofxTCPClient.h \
+ ../../../addons/ofxNetwork/src/ofxTCPManager.h \
+ ../../../addons/ofxNetwork/src/ofxTCPServer.h \
+ ../../../addons/ofxNetwork/src/ofxUDPManager.h \
  ../../../addons/ofxAssimpModelLoader/src/ofxAssimpModelLoader.h \
  ../../../libs/assimp/include/assimp.h \
  ../../../libs/assimp/include/aiTypes.h \
@@ -366,6 +371,16 @@ src/testApp.h:
 ../../../libs/openFrameworks//3d/ofEasyCam.h:
 
 ../../../libs/openFrameworks//gl/ofLight.h:
+
+../../../addons/ofxNetwork/src/ofxNetwork.h:
+
+../../../addons/ofxNetwork/src/ofxTCPClient.h:
+
+../../../addons/ofxNetwork/src/ofxTCPManager.h:
+
+../../../addons/ofxNetwork/src/ofxTCPServer.h:
+
+../../../addons/ofxNetwork/src/ofxUDPManager.h:
 
 ../../../addons/ofxAssimpModelLoader/src/ofxAssimpModelLoader.h:
 
