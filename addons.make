@@ -1,3 +1,4 @@
 ofxAssimpModelLoader
 ofxAndroid
 ofxAccelerometer
+ofxNetwork
