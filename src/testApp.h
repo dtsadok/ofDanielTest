@@ -13,12 +13,16 @@
 #define TAB_YDPI 168
 
 //IP of Mac
-#define HOST_IP "172.26.13.29"
+#define HOST_IP "172.26.25.90"
+#define PORT 11999
+//how long to wait between reconnect attempts (ms)
+#define WAIT_TIME 2500
 
 class testApp : public ofBaseApp{
 
 	public:
 		void setup();
+		void resume();
 		void update();
 		void draw();
 		
@@ -51,7 +55,14 @@ class testApp : public ofBaseApp{
         ofLight	light;
 
         //networking stuff
-        ofxTCPClient tcp;
+        //ofxTCPClient tcp;
+        ofxTCPServer tcp;
+        bool tcpConnected;
+        int connectTime;
+        ofMatrix4x4 extractMatrix(string msg);
+
+        //comes from network
+        ofMatrix4x4 arMatrix;
 };
 
 #endif

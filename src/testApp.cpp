@@ -4,6 +4,7 @@
 //--------------------------------------------------------------
 void testApp::setup(){
     ofSetLogLevel(OF_LOG_VERBOSE);
+    ofSetOrientation(OF_ORIENTATION_90_LEFT);
 
     //zoom in effect
     zoom       = -500;
@@ -15,7 +16,8 @@ void testApp::setup(){
     // we need GL_TEXTURE_2D for our models coords.
     ofDisableArbTex();
 
-    if(model.loadModel("astroBoy_walk.dae",true)){
+    if (model.loadModel("astroBoy_walk.dae", true))
+    {
     	model.setAnimation(0);
     	model.setPosition(ofGetWidth()/2, (float)ofGetHeight() * 0.75 , 0);
     	//model.createLightsFromAiModel();
@@ -41,10 +43,15 @@ void testApp::setup(){
     ofEnableSeparateSpecularLight();
 
 	
-	bAnimate		= true;
+	bAnimate		= false;
 	animationTime	= 0.0;
 
-	tcp.setup(HOST_IP, 11999);
+	//tcpConnected = tcp.setup(HOST_IP, PORT);
+	tcp.setup(11999);
+}
+
+void testApp::resume()
+{
 }
 
 //--------------------------------------------------------------
@@ -64,7 +71,31 @@ void testApp::update(){
 		mesh = model.getCurrentAnimatedMesh(0);
 	}
 
-	//zzz
+	/*
+	if (tcpConnected)
+	{
+		//call/response (?)
+		string msg = tcp.receive();
+		if( msg.length() > 0 )
+		{
+			arMatrix = extractMatrix(msg);
+		}
+	}
+	else //try to reconnect
+	{
+		if  (ofGetElapsedTimeMillis() - connectTime > WAIT_TIME)
+		{
+			//ofLog("Trying to connect to host...");
+			tcpConnected = tcp.setup(HOST_IP, PORT);
+			connectTime = ofGetElapsedTimeMillis();
+		}
+	}
+	*/
+
+	if (tcp.getNumClients() > 0)
+	{
+		tcp.send(0, "hello client - you are connected on port - " + ofToString(tcp.getClientPort(0)) );
+	}
 }
 
 //--------------------------------------------------------------
@@ -76,7 +107,9 @@ void testApp::draw(){
     grabber.draw((1024-800)/2, 0);
 
     ofPushMatrix();
-    //position camera
+
+    //position AR camera
+    glMultMatrixf(arMatrix.getPtr()); //ugh
 
     //reduce opacity
     ofSetColor(255, 255, 255, 100);
@@ -95,6 +128,20 @@ void testApp::draw(){
     //ofDrawBitmapString("keys 1-5 load models, spacebar to trigger animation", 10, ypos); ypos +=15;
     //ofDrawBitmapString("drag to control animation with mouseY", 10, ypos); ypos +=15;
     ofDrawBitmapString("num animations for this model: " + ofToString(model.getAnimationCount()), 10, ypos); ypos +=15;
+
+    char ac[80];
+    gethostname(ac, sizeof(ac));
+    ofDrawBitmapString(ac, 10, ypos);
+
+	if (tcp.getNumClients() > 0)
+	{
+		string port = ofToString( tcp.getClientPort(0) );
+		string ip = tcp.getClientIP(0);
+		string info = "client connected from "+ip+" on port: "+port;
+
+		string msg = tcp.receive(0);
+	}
+
 }
 
 //--------------------------------------------------------------
@@ -181,5 +228,37 @@ void testApp::gotMessage(ofMessage msg){
 //--------------------------------------------------------------
 void testApp::dragEvent(ofDragInfo dragInfo){ 
 
+}
+
+//msg should be 16 floats, space-delimited
+ofMatrix4x4 testApp::extractMatrix(string msg)
+{
+	vector<float> matrix;
+	//break on space
+	char *data = new char[msg.length()];
+	int len = msg.copy(data, msg.length());
+	data[len] = 0;
+
+	//finally, parse!
+	char *f_str = strtok(data, " ");
+	while (f_str != NULL)
+	{
+		float f;
+		//printf ("%s\n", f_str);
+		//check for EOF from sccanf
+		if (sscanf(f_str, "%f", &f) != EOF)
+			matrix.push_back(f);
+
+		f_str = strtok (NULL, " ");
+	}
+
+	//at this point matrix should be 4x4
+	if (matrix.size() == 16)
+	{
+		float tmp[16];
+		memcpy( tmp, &matrix[0], sizeof(float) * 16 );
+
+		return ofMatrix4x4(tmp);
+	}
 }
 
