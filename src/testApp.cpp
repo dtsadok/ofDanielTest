@@ -4,7 +4,7 @@ string debugMessage;
 
 //--------------------------------------------------------------
 void testApp::setup(){
-    ofSetLogLevel(OF_LOG_VERBOSE);
+    ofSetLogLevel(OF_LOG_WARNING); //NOTICE
     ofSetOrientation(OF_ORIENTATION_90_LEFT);
 
     //zoom in effect
@@ -22,9 +22,10 @@ void testApp::setup(){
     	model.setAnimation(0);
     	model.setPosition(ofGetWidth()/2, (float)ofGetHeight() * 0.75 , 0);
     	//model.createLightsFromAiModel();
-    	//model.disableTextures();
-    	//model.disableMaterials();
+    	model.disableTextures();
+    	model.disableMaterials();
 
+/*
     	mesh = model.getMesh(0);
     	position = model.getPosition();
     	normScale = model.getNormalizedScale();
@@ -32,6 +33,7 @@ void testApp::setup(){
     	sceneCenter = model.getSceneCenter();
     	material = model.getMaterialForMesh(0);
         tex = model.getTextureForMesh(0);
+*/
     }
 
     ofEnableBlendMode(OF_BLENDMODE_ALPHA);
@@ -86,8 +88,8 @@ void testApp::update(){
 		if( msg.length() > 0 )
 		{
 			debugMessage = "--( " + msg + " ) --";
-			arMatrix = extractMatrix(msg);
-			smoothARMatrix();
+			extractMatrix(msg, &arMatrix);
+			//smoothARMatrix();
 		}
 	}
 	else //try to reconnect
@@ -116,19 +118,19 @@ void testApp::draw(){
     //position AR camera
     //ofMatrix4x4 -> float[16] seems to be broken :-(
     float *f = arMatrix.getPtr();
-    glMultMatrixf(f); //ugh
+    //glMultMatrixf(f); //ugh
 
     //reduce opacity
     ofSetColor(255, 255, 255, 100);
     ofPushMatrix();
-		//ofTranslate(model.getPosition().x+100, model.getPosition().y, 0);
-		//ofRotate(-mouseX, 0, 1, 0);
-		//ofTranslate(-model.getPosition().x, -model.getPosition().y, 0);
+		ofTranslate(model.getPosition().x+100, model.getPosition().y, 0);
+		ofRotate(-mouseX, 0, 1, 0);
+		ofTranslate(-model.getPosition().x, -model.getPosition().y, 0);
     
-		//model.drawFaces();
-		model.drawWireframe();
-            
+		model.drawFaces();
+		//model.drawWireframe();
     ofPopMatrix();
+
     ofPopMatrix();
 
     int ypos = 15;
@@ -190,7 +192,7 @@ void testApp::keyPressed(int key){
             break;
     }
 
-
+/*
 	mesh = model.getMesh(0);
 	position = model.getPosition();
 	normScale = model.getNormalizedScale();
@@ -198,7 +200,7 @@ void testApp::keyPressed(int key){
 	sceneCenter = model.getSceneCenter();
 	material = model.getMaterialForMesh(0);
     tex = model.getTextureForMesh(0);
-
+*/
 }
 
 //--------------------------------------------------------------
@@ -254,7 +256,7 @@ char *testApp::getIpAddress()
 }
 
 //msg should be 16 floats, space-delimited
-ofMatrix4x4 testApp::extractMatrix(string msg)
+void testApp::extractMatrix(string msg, ofMatrix4x4 *outMatrix)
 {
 	//debugMessage = msg;
 
@@ -288,16 +290,80 @@ ofMatrix4x4 testApp::extractMatrix(string msg)
 		float tmp[16];
 		memcpy( tmp, &matrix[0], sizeof(float) * 16 );
 
-		return ofMatrix4x4(tmp);
+		outMatrix->set(tmp);
 	}
 	else {
-		ofLog(OF_LOG_WARNING, "did not Got Matrix");
-		return ofMatrix4x4();
+		//Do nothing
 	}
 }
 
+//smooth two matrices
+//http://stackoverflow.com/questions/4099369/interpolate-between-rotation-matrices
+//http://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/slerp/
 void testApp::smoothARMatrix()
 {
+	ofVec3f trans0, trans1, transAvg;
+	ofQuaternion rot0, rot1, rotAvg;
+	ofVec3f scale0, scale1, scaleAvg;
+	ofQuaternion so0, so1, soAvg;
+
+	arMatrix.decompose(trans0, rot0, scale0, so0);
+	lastMatrix.decompose(trans1, rot1, scale1, so1);
+
+	transAvg = (trans0 + trans1) / 2;
+	rotAvg = lerpQuat(0.5, rot0, rot1);
+	scaleAvg = (scale0 + scale1) / 2;
+	//soAvg = lerpQuat(0.5, so0, so1);
+
+	//apply averaging
+	arMatrix.makeScaleMatrix(scaleAvg);
+	arMatrix.setRotate(rotAvg);
+	arMatrix.setTranslation(transAvg);
+	//don't know what to do with soAvg :-P
+
+	lastMatrix = arMatrix;
 }
+
+ofQuaternion testApp::lerpQuat(float t, ofQuaternion qa, ofQuaternion qb)
+{
+	ofQuaternion qm;
+
+	//dot product
+	float cosHalfTheta = qa.w() * qb.w() + qa.x() * qb.x() + qa.y() * qb.y() + qa.z() * qb.z();
+    if (abs(cosHalfTheta) >= 1.0)
+    {
+        return qa;
+    }
+    else
+    {
+        // Calculate temporary values.
+        float halfTheta = acos(cosHalfTheta);
+        float sinHalfTheta = sqrt(1.0 - cosHalfTheta*cosHalfTheta);
+        // if theta = 180 degrees then result is not fully defined
+        // we could rotate around any axis normal to qa or qb
+        if (fabs(sinHalfTheta) < 0.001){ // fabs is floating point absolute
+        	qm.set(
+        			(qa.x() * 0.5 + qb.x() * 0.5),
+        			(qa.y() * 0.5 + qb.y() * 0.5),
+        			(qa.z() * 0.5 + qb.z() * 0.5),
+        			(qa.w() * 0.5 + qb.w() * 0.5)
+        		);
+
+            return qm;
+        }
+
+        float ratioA = sin((1 - t) * halfTheta) / sinHalfTheta;
+        float ratioB = sin(t * halfTheta) / sinHalfTheta;
+
+        //calculate Quaternion
+    	qm.set(
+    	        (qa.x() * ratioA + qb.x() * ratioB),
+    	        (qa.y() * ratioA + qb.y() * ratioB),
+    	        (qa.z() * ratioA + qb.z() * ratioB),
+    	        (qa.w() * ratioA + qb.w() * ratioB)
+    		);
+
+        return qm;
+    }
 }
 

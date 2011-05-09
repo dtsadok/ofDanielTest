@@ -63,8 +63,12 @@ class testApp : public ofBaseApp{
 
         //AR matrix comes from network
         ofMatrix4x4 arMatrix;
-        ofMatrix4x4 extractMatrix(string msg);
+        void extractMatrix(string msg, ofMatrix4x4 *outMatrix);
+
+        //data smoothing
+        ofMatrix4x4 lastMatrix;
         void smoothARMatrix();
+        ofQuaternion lerpQuat(float t, ofQuaternion q1, ofQuaternion q2);
 
         //whether to draw camera feed
         bool drawCamera;
