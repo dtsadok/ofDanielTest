@@ -1,5 +1,6 @@
 #include "testApp.h"
 
+string debugMessage;
 
 //--------------------------------------------------------------
 void testApp::setup(){
@@ -46,8 +47,12 @@ void testApp::setup(){
 	bAnimate		= false;
 	animationTime	= 0.0;
 
-	//tcpConnected = tcp.setup(HOST_IP, PORT);
-	tcp.setup(11999);
+	tcpConnected = tcp.setup(HOST_IP, PORT, false); //nonblocking
+	if (tcpConnected) tcp.sendRaw("Phew!\n");
+
+	drawCamera = false;
+
+	debugMessage = "Bupkes...";
 }
 
 void testApp::resume()
@@ -71,14 +76,18 @@ void testApp::update(){
 		mesh = model.getCurrentAnimatedMesh(0);
 	}
 
-	/*
 	if (tcpConnected)
 	{
 		//call/response (?)
+		//tcp.send("A");
+		//sleep?
+
 		string msg = tcp.receive();
 		if( msg.length() > 0 )
 		{
+			debugMessage = "--( " + msg + " ) --";
 			arMatrix = extractMatrix(msg);
+			smoothARMatrix();
 		}
 	}
 	else //try to reconnect
@@ -88,13 +97,8 @@ void testApp::update(){
 			//ofLog("Trying to connect to host...");
 			tcpConnected = tcp.setup(HOST_IP, PORT);
 			connectTime = ofGetElapsedTimeMillis();
+			if (tcpConnected) tcp.send("Phew!");
 		}
-	}
-	*/
-
-	if (tcp.getNumClients() > 0)
-	{
-		tcp.send(0, "hello client - you are connected on port - " + ofToString(tcp.getClientPort(0)) );
 	}
 }
 
@@ -103,45 +107,50 @@ void testApp::draw(){
     //ofBackground(50, 50, 50, 0);
 	ofBackground(0, 0, 0);
     ofSetColor(255, 255, 255, 255);
-    
-    grabber.draw((1024-800)/2, 0);
+
+    if (drawCamera)
+    	grabber.draw((1024-800)/2, 0);
 
     ofPushMatrix();
 
     //position AR camera
-    glMultMatrixf(arMatrix.getPtr()); //ugh
+    //ofMatrix4x4 -> float[16] seems to be broken :-(
+    float *f = arMatrix.getPtr();
+    glMultMatrixf(f); //ugh
 
     //reduce opacity
     ofSetColor(255, 255, 255, 100);
     ofPushMatrix();
-		ofTranslate(model.getPosition().x+100, model.getPosition().y, 0);
-		ofRotate(-mouseX, 0, 1, 0);
-		ofTranslate(-model.getPosition().x, -model.getPosition().y, 0);
+		//ofTranslate(model.getPosition().x+100, model.getPosition().y, 0);
+		//ofRotate(-mouseX, 0, 1, 0);
+		//ofTranslate(-model.getPosition().x, -model.getPosition().y, 0);
     
-		model.drawFaces();
+		//model.drawFaces();
+		model.drawWireframe();
             
     ofPopMatrix();
     ofPopMatrix();
 
     int ypos = 15;
+    if (!drawCamera)
+    	ofDrawBitmapString("Camera is off", 10, ypos); ypos +=15;
+
     ofDrawBitmapString("fps: "+ofToString(ofGetFrameRate(), 2), 10, ypos); ypos +=15;
     //ofDrawBitmapString("keys 1-5 load models, spacebar to trigger animation", 10, ypos); ypos +=15;
     //ofDrawBitmapString("drag to control animation with mouseY", 10, ypos); ypos +=15;
     ofDrawBitmapString("num animations for this model: " + ofToString(model.getAnimationCount()), 10, ypos); ypos +=15;
 
-    char ac[80];
-    gethostname(ac, sizeof(ac));
-    ofDrawBitmapString(ac, 10, ypos);
+    //ofDrawBitmapString(ofToString(getIpAddress()), 10, ypos); ypos+=15;
+    //ofDrawBitmapString("clients: " + ofToString(tcp.getNumClients()), 10, ypos); ypos+=15;
 
-	if (tcp.getNumClients() > 0)
-	{
-		string port = ofToString( tcp.getClientPort(0) );
-		string ip = tcp.getClientIP(0);
-		string info = "client connected from "+ip+" on port: "+port;
+    //tcpConnected
+    ofDrawBitmapString(ofToString(tcpConnected), 10, ypos); ypos+=15;
 
-		string msg = tcp.receive(0);
-	}
-
+    //ofDrawBitmapString(ofToString(arMatrix), 10, ypos); ypos+=15;
+    //char s[1000]; //it's 2011
+    //sprintf(s, "%f %f %f %f, %f %f %f %f, %f %f %f %f, %f %f %f %f", f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8], f[9], f[10], f[11], f[12], f[13], f[14], f[15]);
+    //ofDrawBitmapString(ofToString(s, 16), 10, ypos); ypos+=15;
+    ofDrawBitmapString(debugMessage, 10, ypos); ypos+=15;
 }
 
 //--------------------------------------------------------------
@@ -230,22 +239,42 @@ void testApp::dragEvent(ofDragInfo dragInfo){
 
 }
 
+char *testApp::getIpAddress()
+{
+	char ac[100];
+	gethostname(ac, sizeof(ac));
+	struct hostent* host = gethostbyname(ac);
+	char** current_addr = host->h_addr_list;
+	if (*current_addr != NULL)
+	{
+		struct in_addr* addr = (struct in_addr*)(*current_addr);
+		return inet_ntoa(*addr);
+	}
+	else return NULL;
+}
+
 //msg should be 16 floats, space-delimited
 ofMatrix4x4 testApp::extractMatrix(string msg)
 {
+	//debugMessage = msg;
+
+	ofLog(OF_LOG_WARNING, "In extractMatrix");
+	ofLog(OF_LOG_WARNING, msg);
+
 	vector<float> matrix;
-	//break on space
+
+	//str2char*
 	char *data = new char[msg.length()];
 	int len = msg.copy(data, msg.length());
 	data[len] = 0;
 
 	//finally, parse!
+	//break on space
 	char *f_str = strtok(data, " ");
 	while (f_str != NULL)
 	{
 		float f;
-		//printf ("%s\n", f_str);
-		//check for EOF from sccanf
+		//EOF means not found
 		if (sscanf(f_str, "%f", &f) != EOF)
 			matrix.push_back(f);
 
@@ -255,10 +284,20 @@ ofMatrix4x4 testApp::extractMatrix(string msg)
 	//at this point matrix should be 4x4
 	if (matrix.size() == 16)
 	{
+		ofLog(OF_LOG_WARNING, "Got Matrix");
 		float tmp[16];
 		memcpy( tmp, &matrix[0], sizeof(float) * 16 );
 
 		return ofMatrix4x4(tmp);
 	}
+	else {
+		ofLog(OF_LOG_WARNING, "did not Got Matrix");
+		return ofMatrix4x4();
+	}
+}
+
+void testApp::smoothARMatrix()
+{
+}
 }
 
